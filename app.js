@@ -7,8 +7,7 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index'),
   mongoose = require('mongoose'),
-  config = require('./config'),
-  dataProcess = require('./routes/process');
+  config = require('./config');
 
 var app = express();
 
@@ -16,7 +15,8 @@ var app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
-mongoose.connect('mongodb://' + config.user + ':' + config.pass + config.dburl + '/' + config.db + '?replicaSet=rs-ds025849');
+// mongoose.connect('mongodb://' + config.user + ':' + config.pass + config.dburl + '/' + config.db + '?replicaSet=rs-ds025849');
+mongoose.connect('mongodb://' + config.dburl + '/' + config.db);
 // uncomment after placing your favicon in /public
 app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
@@ -25,7 +25,6 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', dataProcess);
 app.use('/', routes);
 
 // catch 404 and forward to error handler

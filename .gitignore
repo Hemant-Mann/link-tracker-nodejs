@@ -1,0 +1,6 @@
+# Config files
+config.js
+sftp-config.json
+
+# NPM Modules
+node_modules/
