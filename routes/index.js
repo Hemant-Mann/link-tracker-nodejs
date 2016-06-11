@@ -49,7 +49,6 @@ router.get('/click', function (req, res, next) {
         ti = Number(params.ti),
         dest = params.dest;
 
-    
     // @todo handle these multi-level callbacks
     var loc = new Buffer(dest, 'base64');
     if (isNaN(ti) || isNaN(pid) || cookie.length < 15) {
@@ -57,8 +56,8 @@ router.get('/click', function (req, res, next) {
     }
     Ad.findOne({ id: cid }, function (err, ad) {
         if (err || !ad || ad.url != loc) {
-            // var e = new Error('Caution!! This page is trying to send you to ' + loc);
-            // return next(e);
+            var e = new Error('Caution!! This page is trying to send you to ' + loc);
+            return next(e);
         }
 
         // find Adunit from the Database
@@ -75,13 +74,10 @@ router.get('/click', function (req, res, next) {
             referer = getReferer({ r: referer, uri: uri });
 
             User.process({
-                ipaddr: ip,
-                country: country,
-                campaign: cid,
+                aduid: aduid,
+                cid: cid,
                 cookie: cookie,
-                referer: referer,
-                lastTime: ti,
-                ua: req.headers['user-agent']
+                lastTime: ti
             }, function (err, user) {
                 if (err) { // user doing something fishy
                     return false;
@@ -89,15 +85,21 @@ router.get('/click', function (req, res, next) {
 
                 ClickTrack.process({
                     aduid: aduid,
-                    pid: pid,
                     cid: cid,
-                    referer: referer,
-                    country: country,
-                }, function () {
+                    ipaddr: ip,
+                    cookie: cookie,
+                    ua: req.headers['user-agent'],
+                    referer: referer
+                }, country, function () {
                     // process complete
                 });
                 
             });
+            loc += '?utm_source=vnative';
+            loc += '&utm_medium=' + pid;
+            loc += '&utm_content=' + aduid;
+            loc += '&utm_campaign=' + cid;
+            
             res.redirect(loc);
         });
     });
