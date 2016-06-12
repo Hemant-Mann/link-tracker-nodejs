@@ -2,20 +2,22 @@ var express = require('express');
 var router = express.Router();
 var geoip = require('geoip-lite');
 var uri = require('url');
+var UAParser = require('ua-parser-js');
 
 // inlcude Models
 var AdUnit = require('../models/adunit'),
     User = require('../models/user'),
     ClickTrack = require('../models/clicktrack'),
-    Ad = require('../models/ad');
+    Ad = require('../models/ad'),
+    Impression = require('../models/impression');
 
 var getClientIP = function (req) {
     var ip;
     // else process the request
-    ip = req.headers['x-forwarded-for'] ||
-    req.connection.remoteAddress ||
-    req.socket.remoteAddress ||
-    req.connection.socket.remoteAddress;
+    ip = req.headers['x-real-ip'] || req.headers['x-forwarded-for'] ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        req.connection.socket.remoteAddress;
 
     return ip;
 }
@@ -71,7 +73,7 @@ router.get('/click', function (req, res, next) {
             var ip = getClientIP(req),
                 referer = req.get('Referrer') || '';
 
-            referer = getReferer({ r: referer, uri: uri });
+            // referer = getReferer({ r: referer, uri: uri });
 
             User.process({
                 aduid: aduid,
@@ -101,6 +103,63 @@ router.get('/click', function (req, res, next) {
             loc += '&utm_campaign=' + cid;
             
             res.redirect(loc);
+        });
+    });
+});
+
+router.get('/impression', function (req, res, next) {
+    var params = req.query,
+        aduid = params.aduid,
+        cid = params.cid,
+        dom = params.loc, // referer and domain should be the same
+        ua = req.headers['user-agent'],
+        screen = params.screen,    // width, height
+        device = params.device,    // browser, os, model
+        referer = req.get('Referrer') || '',
+        parser = new UAParser(),
+        country = findCountry({ req: req, geoip: geoip });
+
+    var uaResult = parser.setUA(ua).getResult();
+    var obj = {
+        browser: uaResult.browser.name,
+        os: uaResult.os.name,
+        model: uaResult.device.model || 'Desktop'
+    };
+
+    dom = (new Buffer(dom, 'base64')).toString('ascii');;
+    referer = getReferer({ r: referer, uri: uri });
+    if (dom != referer || !screen) {
+        return res.json({ success: true });
+    }
+
+    // compare user agent on server with the details sent by the request
+    if (JSON.stringify(obj) != JSON.stringify(device)) {
+        return res.json({ success: true });
+    }
+
+
+    Ad.findOne({ id: cid }, function (err, ad) {
+        if (err || !ad) {
+            return res.json({ success: true });
+        }
+
+        console.log(aduid);
+        AdUnit.findOne({ _id: aduid }, function (err, adunit) {
+            if (err || !adunit) {
+                return res.json({ success: true });
+            }
+
+            Impression.process({
+                aduid: aduid,
+                cid: cid,
+                domain: dom,
+                ua: device.browser,
+                device: device.model,
+                country: country
+            }, function (err, imp) {
+                console.log('impression is: ' + imp);
+            });
+            res.json({ success: true });
         });
     });
 });
