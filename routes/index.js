@@ -117,7 +117,8 @@ router.get('/impression', function (req, res, next) {
         device = params.device,    // browser, os, model
         referer = req.get('Referrer') || '',
         parser = new UAParser(),
-        country = findCountry({ req: req, geoip: geoip });
+        country = findCountry({ req: req, geoip: geoip }),
+        callback = params.callback;
 
     var uaResult = parser.setUA(ua).getResult();
     var obj = {
@@ -128,25 +129,27 @@ router.get('/impression', function (req, res, next) {
 
     dom = (new Buffer(dom, 'base64')).toString('ascii');;
     referer = getReferer({ r: referer, uri: uri });
+
+    var output = { success: true };
+    output = callback + "(" + JSON.stringify(output) + ")";
     if (dom != referer || !screen) {
-        return res.json({ success: true });
+        return res.send(output);
     }
 
     // compare user agent on server with the details sent by the request
     if (JSON.stringify(obj) != JSON.stringify(device)) {
-        return res.json({ success: true });
+        return res.send(output);
     }
 
 
     Ad.findOne({ id: cid }, function (err, ad) {
         if (err || !ad) {
-            return res.json({ success: true });
+            return res.send(output);
         }
 
-        console.log(aduid);
         AdUnit.findOne({ _id: aduid }, function (err, adunit) {
             if (err || !adunit) {
-                return res.json({ success: true });
+                return res.send(output);
             }
 
             Impression.process({
@@ -159,7 +162,7 @@ router.get('/impression', function (req, res, next) {
             }, function (err, imp) {
                 console.log('impression is: ' + imp);
             });
-            res.json({ success: true });
+            res.send(output);
         });
     });
 });
