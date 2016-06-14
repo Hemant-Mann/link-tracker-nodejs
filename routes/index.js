@@ -12,13 +12,10 @@ var AdUnit = require('../models/adunit'),
     Impression = require('../models/impression');
 
 var getClientIP = function (req) {
-    var ip;
-    // else process the request
-    ip = req.headers['x-real-ip'] || req.headers['x-forwarded-for'] ||
-        req.connection.remoteAddress ||
-        req.socket.remoteAddress ||
-        req.connection.socket.remoteAddress;
+    var ip = req.headers['x-forwarded-for'] ||
+        req.headers['cf-connecting-ip'];
 
+    ip = ip.split(",")[0];
     return ip;
 }
 
@@ -27,13 +24,14 @@ var findCountry = function (opts) {
         lookup,
         ip, country = "IN";
 
-    ip = getClientIP(req);
+    return req.headers['cf-ipcountry'] || country;
 
+    /*ip = getClientIP(req);
     lookup = opts.geoip.lookup(ip);
     if (lookup) {
         country = lookup.country;
     }
-    return country;
+    return country;*/
 };
 
 var getReferer = function (opts) {
@@ -160,7 +158,6 @@ router.get('/impression', function (req, res, next) {
                 device: device.model,
                 country: country
             }, function (err, imp) {
-                console.log('impression is: ' + imp);
             });
             res.send(output);
         });
