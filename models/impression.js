@@ -4,7 +4,7 @@ var Schema = mongoose.Schema;
 // create a schema
 var impSchema = new Schema({
     aduid: Schema.Types.ObjectId,
-    cid: Number,
+    cid: Schema.Types.ObjectId,
     domain: String,
     ua: String,
     device: String,

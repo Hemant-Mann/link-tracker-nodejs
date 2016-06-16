@@ -54,7 +54,7 @@ router.get('/click', function (req, res, next) {
     if (isNaN(ti) || isNaN(pid) || cookie.length < 15) {
         return res.redirect(loc);
     }
-    Ad.findOne({ id: cid }, function (err, ad) {
+    Ad.findOne({ _id: cid }, function (err, ad) {
         if (err || !ad || ad.url != loc) {
             var e = new Error('Caution!! This page is trying to send you to ' + loc);
             return next(e);
@@ -121,8 +121,7 @@ router.get('/impression', function (req, res, next) {
     var uaResult = parser.setUA(ua).getResult();
     var obj = {
         browser: uaResult.browser.name,
-        os: uaResult.os.name,
-        model: uaResult.device.model || 'Desktop'
+        os: uaResult.os.name
     };
 
     dom = (new Buffer(dom, 'base64')).toString('ascii');;
@@ -139,8 +138,15 @@ router.get('/impression', function (req, res, next) {
         return res.send(output);
     }
 
+    var mobile = Boolean(Number(params.mobile));
+    var platform = null;
+    if (mobile) {
+        platform = "Mobile";
+    } else {
+        platform = "Desktop";
+    }
 
-    Ad.findOne({ id: cid }, function (err, ad) {
+    Ad.findOne({ _id: cid }, function (err, ad) {
         if (err || !ad) {
             return res.send(output);
         }
@@ -155,7 +161,7 @@ router.get('/impression', function (req, res, next) {
                 cid: cid,
                 domain: dom,
                 ua: device.browser,
-                device: device.model,
+                device: platform,
                 country: country
             }, function (err, imp) {
             });

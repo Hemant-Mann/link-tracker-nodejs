@@ -4,7 +4,7 @@ var Schema = mongoose.Schema;
 // create a schema
 var ckSchema = new Schema({
     aduid: Schema.Types.ObjectId,
-    cid: { type: Number, required: true },
+    cid: { type: Schema.Types.ObjectId, required: true },
     ipaddr: String,
     cookie: String,
     ua: String,
