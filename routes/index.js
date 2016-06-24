@@ -43,7 +43,7 @@ var getReferer = function (opts) {
 router.get('/click', function (req, res, next) {
     var params = req.query,
         aduid = params.slot,
-        pid = Number(params.pid),
+        pid = params.pid,
         cid = params.cid,
         cookie = params.ckid,
         ti = Number(params.ti),
@@ -51,20 +51,20 @@ router.get('/click', function (req, res, next) {
 
     // @todo handle these multi-level callbacks
     var loc = new Buffer(dest, 'base64');
-    if (isNaN(ti) || isNaN(pid) || cookie.length < 15) {
+    if (isNaN(ti) || cookie.length < 15) {
         return res.redirect(loc);
     }
+
     Ad.findOne({ _id: cid }, function (err, ad) {
         if (err || !ad || ad.url != loc) {
-            var e = new Error('Caution!! This page is trying to send you to ' + loc);
-            return next(e);
+            return res.status(400).json({ error: "Caution!! This page is trying to send you to " + loc });
         }
 
         // find Adunit from the Database
         AdUnit.findOne({ _id: aduid }, function (err, adunit) {
             // some url validations to check for best practises
-            if (err || !adunit || adunit.user_id !== pid) {
-                return next(new Error('Something went wrong!!'));
+            if (err || !adunit || adunit.user_id != pid) {
+                return res.status(400).json({ error: "Error processing your request!" });
             }
 
             var country = findCountry({ req: req, geoip: geoip });
@@ -105,6 +105,9 @@ router.get('/click', function (req, res, next) {
     });
 });
 
+/**
+ * Tracking the impressions
+ */
 router.get('/impression', function (req, res, next) {
     var params = req.query,
         aduid = params.aduid,

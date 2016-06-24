@@ -3,21 +3,25 @@ var Schema = mongoose.Schema;
 
 // create a schema
 var adSchema = new Schema({
-    user_id: Number,
-    id: Number,
+    user_id: Schema.Types.ObjectId,
     url: String,
     target: String,
     title: String,
     description: String,
     image: String,
-    category: String,
+    video: [],
+    type: String,
+    category: [],
+    coverage: [],
     budget: Number,
     frequency: Number,
     start: Date,
     end: Date,
     cpc: Number,
-    visibility: Number,
+    privacy: String,
+    visibility: Boolean,
     created: Date,
+    live: Boolean,
     modified: { type: Date, default: Date.now }
 }, { collection: 'ads' });
 
