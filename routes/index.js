@@ -1,6 +1,5 @@
 var express = require('express');
 var router = express.Router();
-var geoip = require('geoip-lite');
 var uri = require('url');
 var UAParser = require('ua-parser-js');
 
@@ -19,19 +18,10 @@ var getClientIP = function (req) {
     return ip;
 }
 
-var findCountry = function (opts) {
-    var req = opts.req,
-        lookup,
-        ip, country = "IN";
+var findCountry = function (req) {
+    var country = "IN";
 
     return req.headers['cf-ipcountry'] || country;
-
-    /*ip = getClientIP(req);
-    lookup = opts.geoip.lookup(ip);
-    if (lookup) {
-        country = lookup.country;
-    }
-    return country;*/
 };
 
 var getReferer = function (opts) {
@@ -67,11 +57,9 @@ router.get('/click', function (req, res, next) {
                 return res.status(400).json({ error: "Error processing your request!" });
             }
 
-            var country = findCountry({ req: req, geoip: geoip });
+            var country = findCountry(req);
             var ip = getClientIP(req),
                 referer = req.get('Referrer') || '';
-
-            // referer = getReferer({ r: referer, uri: uri });
 
             User.process({
                 aduid: aduid,
@@ -80,27 +68,26 @@ router.get('/click', function (req, res, next) {
                 lastTime: ti
             }, function (err, user) {
                 if (err) { // user doing something fishy
-                    return false;
+                    return res.redirect(loc);
                 }
+
+                loc += '?utm_source=vnative';
+                loc += '&utm_medium=' + pid;
+                loc += '&utm_content=' + aduid;
+                loc += '&utm_campaign=' + cid;
+                res.redirect(loc);
 
                 ClickTrack.process({
                     aduid: aduid,
                     cid: cid,
                     ipaddr: ip,
                     cookie: cookie,
-                    ua: req.headers['user-agent'],
                     referer: referer
-                }, country, function () {
+                }, ua, country, function () {
                     // process complete
                 });
                 
             });
-            loc += '?utm_source=vnative';
-            loc += '&utm_medium=' + pid;
-            loc += '&utm_content=' + aduid;
-            loc += '&utm_campaign=' + cid;
-            
-            res.redirect(loc);
         });
     });
 });
@@ -118,7 +105,7 @@ router.get('/impression', function (req, res, next) {
         device = params.device,    // browser, os, model
         referer = req.get('Referrer') || '',
         parser = new UAParser(),
-        country = findCountry({ req: req, geoip: geoip }),
+        country = findCountry(req),
         callback = params.callback;
 
     var uaResult = parser.setUA(ua).getResult();
@@ -127,7 +114,7 @@ router.get('/impression', function (req, res, next) {
         os: uaResult.os.name
     };
 
-    dom = (new Buffer(dom, 'base64')).toString('ascii');;
+    dom = (new Buffer(dom, 'base64')).toString('ascii');
     referer = getReferer({ r: referer, uri: uri });
 
     var output = { success: true };
@@ -166,10 +153,10 @@ router.get('/impression', function (req, res, next) {
                 ua: device.browser,
                 device: platform,
                 country: country
-            }, function (err, imp) {
             });
-            res.send(output);
         });
+
+        res.send(output);
     });
 });
 

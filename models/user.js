@@ -9,6 +9,8 @@ var userSchema = new Schema({
     lastTime: Number
 }, { collection: 'tkusers' });
 
+userSchema.index({ cookie: 1, cid: 1, aduid: 1, lastTime: 1 });
+
 userSchema.statics.process = function (opts, cb) {
     var self = this;
     self.findOne({ cookie: opts.cookie, aduid: opts.aduid, cid: opts.cid }, function (err, user) {
