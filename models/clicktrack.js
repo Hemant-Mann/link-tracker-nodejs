@@ -1,10 +1,11 @@
 var mongoose = require('mongoose');
+var Utils = require('../utils');
 var Schema = mongoose.Schema;
 
 // create a schema
 var ckSchema = new Schema({
-    aduid: Schema.Types.ObjectId,
     cid: { type: Schema.Types.ObjectId, required: true },
+    pid: Schema.Types.ObjectId,
     ipaddr: String,
     cookie: String,
     ua: String,
@@ -13,34 +14,30 @@ var ckSchema = new Schema({
     created: { type: Date, default: Date.now }
 }, { collection: 'clicktracks' });
 
-ckSchema.index({ aduid: 1, cid: 1, ipaddr: 1, cookie: 1, referer: 1, created: 1 });
+ckSchema.index({ cid: 1, pid: 1, ipaddr: 1, cookie: 1, referer: 1, created: 1 });
 
 ckSchema.statics.process = function (opts, ua, country, cb) {
     var self = this,
-        start = new Date(),
-        end = new Date();
+        dateQuery = Utils.dateQuery();
 
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+    var search = Utils.copyObj(opts);
+    search.created = { $gte: dateQuery.start, $lte: dateQuery.end };
 
-    opts.created = {
-        $gte: start,
-        $lte: end
-    };
-
-    self.findOne(opts, function (err, clickDoc) {
+    self.findOne(search, function (err, clickDoc) {
         if (err) {
-            return cb(err, null);
+            return cb(true);
         }
 
+        var newDoc = false;
         if (!clickDoc) {
+            newDoc = true;
             clickDoc = new self(opts);
             clickDoc.country = country;
             clickDoc.ua = ua;
             clickDoc.save();
         }
 
-        cb();
+        cb(newDoc);
     });
 };
 

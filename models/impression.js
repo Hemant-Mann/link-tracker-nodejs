@@ -1,10 +1,11 @@
 var mongoose = require('mongoose');
+var Utils = require('../utils');
 var Schema = mongoose.Schema;
 
 // create a schema
 var impSchema = new Schema({
-    aduid: Schema.Types.ObjectId,
     cid: Schema.Types.ObjectId,
+    pid: Schema.Types.ObjectId,
     domain: String,
     ua: String,
     device: String,
@@ -13,24 +14,17 @@ var impSchema = new Schema({
     modified: { type: Date, default: Date.now }
 }, { collection: 'impressions' });
 
-impSchema.index({ aduid: 1, cid: 1, domain: 1, ua: 1, device: 1, country: 1, modified: 1 });
+impSchema.index({ cid: 1, pid: 1, domain: 1, ua: 1, device: 1, country: 1, modified: 1 });
 
 impSchema.statics.process = function (opts) {
 	var self = this,
-		start = new Date(),
-		end = new Date();
+		dateQuery = Utils.dateQuery();
 
-	start.setHours(0, 0, 0, 0);
-	end.setHours(23, 59, 59, 999);
-
-	opts.modified = {
-		$gte: start,
-		$lte: end
-	};
-	self.findOne(opts, function (err, imp) {
-		if (err) {
-			return;
-		}
+	var search = Utils.copyObj(opts);
+	search.modified = { $gte: dateQuery.start, $lte: dateQuery.end };
+	
+	self.findOne(search, function (err, imp) {
+		if (err) { return; }
 
 		if (!imp) {
 			imp = new self(opts);

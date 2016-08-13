@@ -4,8 +4,7 @@ var uri = require('url');
 var UAParser = require('ua-parser-js');
 
 // inlcude Models
-var AdUnit = require('../models/adunit'),
-    User = require('../models/user'),
+var User = require('../models/user'),
     ClickTrack = require('../models/clicktrack'),
     Ad = require('../models/ad'),
     Impression = require('../models/impression');
@@ -32,9 +31,9 @@ var getReferer = function (opts) {
 // Capture tracking request
 router.get('/click', function (req, res, next) {
     var params = req.query,
-        aduid = params.slot,
         pid = params.pid,
         cid = params.cid,
+        ua = req.headers['user-agent'],
         cookie = params.ckid,
         ti = Number(params.ti),
         dest = params.dest;
@@ -45,49 +44,42 @@ router.get('/click', function (req, res, next) {
         return res.redirect(loc);
     }
 
-    Ad.findOne({ _id: cid }, function (err, ad) {
+    Ad.findOne({ _id: cid }, '_id url', function (err, ad) {
         if (err || !ad || ad.url != loc) {
             return res.status(400).json({ error: "Caution!! This page is trying to send you to " + loc });
         }
 
-        // find Adunit from the Database
-        AdUnit.findOne({ _id: aduid }, function (err, adunit) {
-            // some url validations to check for best practises
-            if (err || !adunit || adunit.user_id != pid) {
-                return res.status(400).json({ error: "Error processing your request!" });
+        var country = findCountry(req);
+        var ip = getClientIP(req),
+            referer = req.get('Referrer') || '';
+
+        User.process({
+            cid: cid,
+            pid: pid,
+            cookie: cookie,
+            lastTime: ti
+        }, function (err, user) {
+            if (err) { // user doing something fishy
+                return res.redirect(loc);
             }
 
-            var country = findCountry(req);
-            var ip = getClientIP(req),
-                referer = req.get('Referrer') || '';
-
-            User.process({
-                aduid: aduid,
+            ClickTrack.process({
                 cid: cid,
+                pid: pid,
+                ipaddr: ip,
                 cookie: cookie,
-                lastTime: ti
-            }, function (err, user) {
-                if (err) { // user doing something fishy
+                referer: referer
+            }, ua, country, function (newDoc) {
+                if (!newDoc) {
                     return res.redirect(loc);
                 }
 
                 loc += '?utm_source=vnative';
                 loc += '&utm_medium=' + pid;
-                loc += '&utm_content=' + aduid;
                 loc += '&utm_campaign=' + cid;
                 res.redirect(loc);
-
-                ClickTrack.process({
-                    aduid: aduid,
-                    cid: cid,
-                    ipaddr: ip,
-                    cookie: cookie,
-                    referer: referer
-                }, ua, country, function () {
-                    // process complete
-                });
-                
             });
+            
         });
     });
 });
@@ -97,7 +89,7 @@ router.get('/click', function (req, res, next) {
  */
 router.get('/impression', function (req, res, next) {
     var params = req.query,
-        aduid = params.aduid,
+        pid = params.pid,
         cid = params.cid,
         dom = params.loc, // referer and domain should be the same
         ua = req.headers['user-agent'],
@@ -131,9 +123,11 @@ router.get('/impression', function (req, res, next) {
     var mobile = Boolean(Number(params.mobile));
     var platform = null;
     if (mobile) {
-        platform = "Mobile";
+        platform = "mobile";
+    } else if (Boolean(ua.match(/(iPad|SCH-I800|xoom|kindle)/i))) {
+        platform = "tablet";
     } else {
-        platform = "Desktop";
+        platform = "desktop";
     }
 
     Ad.findOne({ _id: cid }, function (err, ad) {
@@ -141,19 +135,13 @@ router.get('/impression', function (req, res, next) {
             return res.send(output);
         }
 
-        AdUnit.findOne({ _id: aduid }, function (err, adunit) {
-            if (err || !adunit) {
-                return res.send(output);
-            }
-
-            Impression.process({
-                aduid: aduid,
-                cid: cid,
-                domain: dom,
-                ua: device.browser,
-                device: platform,
-                country: country
-            });
+        Impression.process({
+            cid: cid,
+            pid: pid,
+            domain: dom,
+            ua: device.browser,
+            device: platform,
+            country: country
         });
 
         res.send(output);
