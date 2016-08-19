@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var uri = require('url');
 var UAParser = require('ua-parser-js');
+var Utils = require('../utils');
 
 // inlcude Models
 var User = require('../models/user'),
@@ -16,12 +17,6 @@ var getClientIP = function (req) {
     ip = ip.split(",")[0];
     return ip;
 }
-
-var findCountry = function (req) {
-    var country = "IN";
-
-    return req.headers['cf-ipcountry'] || country;
-};
 
 var getReferer = function (opts) {
     var hostn = opts.uri.parse(opts.r).hostname;
@@ -39,7 +34,7 @@ router.get('/click', function (req, res, next) {
         dest = params.dest;
 
     // @todo handle these multi-level callbacks
-    var loc = new Buffer(dest, 'base64');
+    var loc = (new Buffer(dest, 'base64')).toString('ascii');
     if (isNaN(ti) || cookie.length < 15) {
         return res.redirect(loc);
     }
@@ -49,7 +44,7 @@ router.get('/click', function (req, res, next) {
             return res.status(400).json({ error: "Caution!! This page is trying to send you to " + loc });
         }
 
-        var country = findCountry(req);
+        var country = Utils.findCountry(req);
         var ip = getClientIP(req),
             referer = req.get('Referrer') || '';
 
@@ -63,20 +58,17 @@ router.get('/click', function (req, res, next) {
                 return res.redirect(loc);
             }
 
+            var device = Utils.device(req);
             ClickTrack.process({
-                cid: cid,
-                pid: pid,
-                ipaddr: ip,
-                cookie: cookie,
+                adid: cid, pid: pid,
+                ipaddr: ip, cookie: cookie,
                 referer: referer
-            }, ua, country, function (newDoc) {
+            }, { ua: ua, country: country, device: device }, function (newDoc) {
                 if (!newDoc) {
                     return res.redirect(loc);
                 }
 
-                loc += '?utm_source=vnative';
-                loc += '&utm_medium=' + pid;
-                loc += '&utm_campaign=' + cid;
+                loc = ClickTrack.utmString(loc, cid, pid);
                 res.redirect(loc);
             });
             
@@ -97,7 +89,7 @@ router.get('/impression', function (req, res, next) {
         device = params.device,    // browser, os, model
         referer = req.get('Referrer') || '',
         parser = new UAParser(),
-        country = findCountry(req),
+        country = Utils.findCountry(req),
         callback = params.callback;
 
     var uaResult = parser.setUA(ua).getResult();
@@ -136,12 +128,9 @@ router.get('/impression', function (req, res, next) {
         }
 
         Impression.process({
-            cid: cid,
-            pid: pid,
-            domain: dom,
-            ua: device.browser,
-            device: platform,
-            country: country
+            cid: cid, pid: pid,
+            domain: dom, ua: device.browser,
+            device: platform, country: country
         });
 
         res.send(output);
