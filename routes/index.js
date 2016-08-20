@@ -61,9 +61,8 @@ router.get('/click', function (req, res, next) {
             var device = Utils.device(req);
             ClickTrack.process({
                 adid: cid, pid: pid,
-                ipaddr: ip, cookie: cookie,
-                referer: referer
-            }, { ua: ua, country: country, device: device }, function (newDoc) {
+                ipaddr: ip, cookie: cookie
+            }, { ua: ua, country: country, referer: referer, device: device }, function (newDoc) {
                 if (!newDoc) {
                     return res.redirect(loc);
                 }
@@ -128,7 +127,7 @@ router.get('/impression', function (req, res, next) {
         }
 
         Impression.process({
-            cid: cid, pid: pid,
+            adid: cid, pid: pid,
             domain: dom, ua: device.browser,
             device: platform, country: country
         });

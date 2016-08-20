@@ -4,7 +4,7 @@ var Schema = mongoose.Schema;
 
 // create a schema
 var impSchema = new Schema({
-    cid: Schema.Types.ObjectId,
+    adid: Schema.Types.ObjectId,
     pid: Schema.Types.ObjectId,
     domain: String,
     ua: String,
@@ -14,7 +14,7 @@ var impSchema = new Schema({
     modified: { type: Date, default: Date.now }
 }, { collection: 'impressions' });
 
-impSchema.index({ cid: 1, pid: 1, domain: 1, ua: 1, device: 1, country: 1, modified: 1 });
+impSchema.index({ adid: 1, pid: 1, domain: 1, ua: 1, device: 1, country: 1, modified: 1 });
 
 impSchema.statics.process = function (opts) {
 	var self = this,
