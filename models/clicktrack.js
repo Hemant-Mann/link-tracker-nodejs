@@ -11,7 +11,8 @@ var ckSchema = new Schema({
     cookie: { type: String, required: true },
     is_bot: { type: Boolean, default: false },
     device: String,
-    ua: String,
+    browser: String,
+    os: String,
     referer: String,
     country: String,
     created: { type: Date, default: Date.now }
@@ -24,7 +25,6 @@ ckSchema.statics.process = function (opts, extra, cb) {
         dateQuery = Utils.dateQuery();
 
     var search = Utils.copyObj(opts);
-    // search.created = { $gte: dateQuery.start, $lte: dateQuery.end };
 
     self.findOne(search, function (err, clickDoc) {
         if (err) {
@@ -39,6 +39,10 @@ ckSchema.statics.process = function (opts, extra, cb) {
             extraKeys.forEach(function (k) {
                 clickDoc[k] = extra[k];
             });
+
+            // Save only hostname instead of full URL
+            var parsedUrl = urlParser.parse(clickDoc.referer);
+            clickDoc.referer = parsedUrl.host;
             clickDoc.save();
         }
 
@@ -46,11 +50,13 @@ ckSchema.statics.process = function (opts, extra, cb) {
     });
 };
 
-ckSchema.statics.utmString = function (loc, cid, pid) {
+ckSchema.statics.utmString = function (loc, opts) {
     var qs = Utils.getSearchQuery(loc);
-    qs['utm_source'] = 'vnative';
-    qs['utm_medium'] = pid;
-    qs['utm_campaign'] = cid;
+    qs['utm_source'] = opts.user_id;
+    qs['utm_medium'] = 'affiliate';
+    qs['utm_term'] = opts.ref;
+    qs['utm_content'] = opts.ad.title;  // enocde this?
+    qs['utm_campaign'] = opts.ad._id;
 
     var arr = [];
     for (var key in qs) {

@@ -16,7 +16,7 @@ var getClientIP = function (req) {
 
     ip = ip.split(",")[0];
     return ip;
-}
+};
 
 var getReferer = function (opts) {
     var hostn = opts.uri.parse(opts.r).hostname;
@@ -39,7 +39,7 @@ router.get('/click', function (req, res, next) {
         return res.redirect(loc);
     }
 
-    Ad.findOne({ _id: cid }, '_id url', function (err, ad) {
+    Ad.findOne({ _id: cid }, '_id url title', function (err, ad) {
         if (err || !ad || ad.url != loc) {
             return res.status(400).json({ error: "Caution!! This page is trying to send you to " + loc });
         }
@@ -59,15 +59,18 @@ router.get('/click', function (req, res, next) {
             }
 
             var device = Utils.device(req);
+            var parser = new UAParser(req.headers['user-agent']);
+            var uaResult = parser.getResult();
+            var extra = { browser: uaResult.browser.name, country: country, referer: referer, device: device };
+
+            if (uaResult.os.name) {
+                extra['os'] = uaResult.os.name;
+            }
             ClickTrack.process({
                 adid: cid, pid: pid,
                 ipaddr: ip, cookie: cookie
-            }, { ua: ua, country: country, referer: referer, device: device }, function (newDoc) {
-                if (!newDoc) {
-                    return res.redirect(loc);
-                }
-
-                loc = ClickTrack.utmString(loc, cid, pid);
+            }, extra, function (newDoc) {
+                loc = ClickTrack.utmString(loc, {ad: ad, user_id: pid, ref: referer});
                 res.redirect(loc);
             });
             
@@ -83,15 +86,13 @@ router.get('/impression', function (req, res, next) {
         pid = params.pid,
         cid = params.cid,
         dom = params.loc, // referer and domain should be the same
-        ua = req.headers['user-agent'],
         screen = params.screen,    // width, height
         device = params.device,    // browser, os, model
         referer = req.get('Referrer') || '',
-        parser = new UAParser(),
-        country = Utils.findCountry(req),
+        parser = new UAParser(req.headers['user-agent']),
         callback = params.callback;
 
-    var uaResult = parser.setUA(ua).getResult();
+    var uaResult = parser.getResult();
     var obj = {
         browser: uaResult.browser.name,
         os: uaResult.os.name
@@ -111,15 +112,7 @@ router.get('/impression', function (req, res, next) {
         return res.send(output);
     }
 
-    var mobile = Boolean(Number(params.mobile));
-    var platform = null;
-    if (mobile) {
-        platform = "mobile";
-    } else if (Boolean(ua.match(/(iPad|SCH-I800|xoom|kindle)/i))) {
-        platform = "tablet";
-    } else {
-        platform = "desktop";
-    }
+    var platform = Utils.device(req);
 
     Ad.findOne({ _id: cid }, function (err, ad) {
         if (err || !ad) {
@@ -129,7 +122,7 @@ router.get('/impression', function (req, res, next) {
         Impression.process({
             adid: cid, pid: pid,
             domain: dom, ua: device.browser,
-            device: platform, country: country
+            device: platform, country: Utils.findCountry(req)
         });
 
         res.send(output);

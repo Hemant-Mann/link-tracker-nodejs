@@ -4,3 +4,4 @@ sftp-config.json
 
 # NPM Modules
 node_modules/
+.DS_Store
