@@ -18,8 +18,6 @@ var ckSchema = new Schema({
     created: { type: Date, default: Date.now }
 }, { collection: 'clicks' });
 
-ckSchema.index({ adid: 1, pid: 1, ipaddr: 1, cookie: 1 });
-
 ckSchema.statics.process = function (opts, extra, cb) {
     var self = this,
         dateQuery = Utils.dateQuery();

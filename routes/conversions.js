@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var Utils = require('../utils');
 var UAParser = require('ua-parser-js');
+var path = require('path');
 
 // inlcude Models
 var Click = require('../models/clicktrack');
@@ -16,16 +17,10 @@ var getClientIP = function (req) {
     return ip;
 };
 
-// Capture tracking request
-router.get('/acquisition', function (req, res, next) {
-    var cid = req.query.cid,
-        callback = req.query.callback || 'callback';
-
-    var msg = { success: true };
-    var output = callback + "(" + JSON.stringify(msg) + ")";
-    Click.findOne({ _id: cid }, 'adid pid _id', function (err, c) {
+function processConv(find, callback) {
+    Click.findOne(find, 'adid pid _id', function (err, c) {
         if (err || !c) {
-            return res.json(output);
+            return callback(true, null);
         }
 
         Conversion.findOne({ cid: c._id }, function (err, doc) {
@@ -37,9 +32,38 @@ router.get('/acquisition', function (req, res, next) {
                 conv.save();
             }
 
-            res.json(output);
+            callback(null, true);
         });
     });
+}
+
+// Capture tracking request
+router.get('/acquisition', function (req, res, next) {
+    var cid = req.query.click_id,
+        callback = req.query.callback || 'callback';
+
+    var msg = { success: true };
+    var output = callback + "(" + JSON.stringify(msg) + ")";
+    processConv({_id: cid}, function (err, success) {
+        res.send(output);
+    });
+});
+
+router.get('/pixel', function (req, res, next) {
+    var ckid = req.cookies.__vmtraffictracking;
+    var adid = req.query.adid;
+
+    if (!ckid && !adid) {
+        if (req.query.ckid) {
+            res.cookie('__vmtraffictracking', req.query.ckid, {path: '/', domain: req.headers['host'], httpOnly: true});
+        }
+        res.sendFile(path.join(__dirname, '../public/_blue.gif'));
+    } else {
+        processConv({cookie: ckid, adid: adid}, function (err, success) {
+            // send an image
+            res.sendFile(path.join(__dirname, '../public/_blue.gif'));
+        });
+    }
 });
 
 // https://play.google.com/store/apps/details?id=com.swiftintern&referrer=utm_source%3Duser_id%26utm_medium%3Daffiliate%26utm_term%3Dreferer%26utm_content%3Dclick_id%26utm_campaign%3Dad_id
