@@ -8,6 +8,7 @@ var path = require('path');
 var Click = require('../models/clicktrack');
 var Ad = require('../models/ad');
 var Conversion = require('../models/conversion');
+var Advert = require('../models/affiliate');
 
 var getClientIP = function (req) {
     var ip = req.headers['x-forwarded-for'] ||
@@ -18,8 +19,8 @@ var getClientIP = function (req) {
 };
 
 function processConv(find, callback) {
-    Click.findOne(find, 'adid pid _id', function (err, c) {
-        if (err || !c) {
+    Click.findOne(find, 'adid pid _id is_bot', function (err, c) {
+        if (err || !c || c.is_bot) {
             return callback(true, null);
         }
 
@@ -52,15 +53,33 @@ router.get('/acquisition', function (req, res, next) {
 router.get('/pixel', function (req, res, next) {
     var ckid = req.cookies.__vmtraffictracking;
     var adid = req.query.adid;
+    var advert_id = req.query.advert_id;
 
     if (!ckid && !adid) {
         if (req.query.ckid) {
-            res.cookie('__vmtraffictracking', req.query.ckid, {path: '/', domain: req.headers['host'], httpOnly: true});
+            res.cookie('__vmtraffictracking', req.query.ckid, {
+                path: '/',
+                domain: req.headers['host'],
+                httpOnly: true,
+                expires: new Date(Date.now() + 86400000 * 365)
+            });
         }
         res.sendFile(path.join(__dirname, '../public/_blue.gif'));
     } else {
         processConv({cookie: ckid, adid: adid}, function (err, success) {
             // send an image
+            if (advert_id) {
+                Advert.findOne({ _id: advert_id }, function (err, affiliate) {
+                    if (err || !affiliate) return false;
+
+                    var newMeta = affiliate.meta;
+                    newMeta['pixel'] = 'working';
+
+                    Advert.update({ _id: affiliate._id }, { $set: {meta: newMeta}}, function (err) {
+                        // do something
+                    });
+                });
+            }
             res.sendFile(path.join(__dirname, '../public/_blue.gif'));
         });
     }
@@ -105,44 +124,38 @@ router.get('/app', function (req, res, next) {
 // not using proxy domain directly redirecting to the Final Website
 router.get('/track/click', function (req, res, next) {
     var parser = new UAParser(req.headers['user-agent']);
-    var adid = req.query.adid,
-        pid = req.query.pid,
-        callback = req.query.callback || 'callback',
-        output = callback + "(" + JSON.stringify({ success: true }) + ")",
+    var adid = req.query.adid, pid = req.query.pid,
         referer = req.get('Referrer'),
         navigator = Boolean(Number(req.query.u || "0")),
         userAgent = req.query.ua || "";
 
-    var ua = (new Buffer(dom, 'base64')).toString('ascii');
+    var ua = (new Buffer(userAgent, 'base64')).toString('ascii');
     var ti = Number(req.query.ti || "NaN");
     // some basic checks
     if (!referer || !navigator || ua !== req.headers['user-agent'] || isNaN(ti)) {
-        return res.send(output);
+        return res.sendFile(path.join(__dirname, '../public/_blue.gif'));
     }
 
     Ad.findOne({ _id: adid }, '_id', function (err, ad) {
-        if (!ad) {
-            return res.send(output);
+        if (err || !ad) {
+            return res.sendFile(path.join(__dirname, '../public/_blue.gif'));
         }
 
-        var device = Utils.device(req);
         var parser = new UAParser(req.headers['user-agent']);
         var uaResult = parser.getResult();
-        var extra = { browser: uaResult.browser.name, country: Utils.findCountry(req), referer: referer, device: device };
+        var extra = { browser: uaResult.browser.name, country: Utils.findCountry(req), referer: referer, device: Utils.device(req) };
         if (uaResult.os.name) {
             extra['os'] = uaResult.os.name;
         }
         
         Click.process({
             adid: adid, ipaddr: getClientIP(req),
-            pid: pid, cookie: req.query.ckid
+            cookie: req.query.ckid, pid: pid
         }, extra, function () {
 
         });
-        res.send(output);
+        res.sendFile(path.join(__dirname, '../public/_blue.gif'));
     });
-
-    res.json({ success: true });
 });
 
 module.exports = router;

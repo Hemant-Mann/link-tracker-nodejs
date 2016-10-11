@@ -67,8 +67,8 @@ router.get('/click', function (req, res, next) {
                 extra['os'] = uaResult.os.name;
             }
             ClickTrack.process({
-                adid: cid, pid: pid,
-                ipaddr: ip, cookie: cookie
+                adid: cid, ipaddr: ip,
+                cookie: cookie, pid: pid
             }, extra, function (newDoc) {
                 loc = ClickTrack.utmString(loc, {ad: ad, user_id: pid, ref: referer});
                 res.redirect(loc);
