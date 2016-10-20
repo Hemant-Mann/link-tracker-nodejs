@@ -111,6 +111,16 @@ var utils = {
         var parsedUrl = uriParser.parse(location);
 
         return queryString.parse(parsedUrl.query) || {};
+    },
+    getClientIP: function (req) {
+        var ip = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
+
+        var arr = ip.split(",");
+        arr = arr.map(function (el) {
+            return el.trim();
+        });
+
+        return arr.pop();
     }
 };
 

@@ -10,14 +10,6 @@ var User = require('../models/user'),
     Ad = require('../models/ad'),
     Impression = require('../models/impression');
 
-var getClientIP = function (req) {
-    var ip = req.headers['x-forwarded-for'] ||
-        req.headers['cf-connecting-ip'];
-
-    ip = ip.split(",")[0];
-    return ip;
-};
-
 var getReferer = function (opts) {
     var hostn = opts.uri.parse(opts.r).hostname;
     return hostn;
@@ -45,35 +37,31 @@ router.get('/click', function (req, res, next) {
         }
 
         var country = Utils.findCountry(req);
-        var ip = getClientIP(req),
-            referer = req.get('Referrer') || '';
+        var referer = req.get('Referrer') || '';
 
         User.process({
-            cid: cid,
-            pid: pid,
-            cookie: cookie,
-            lastTime: ti
+            cid: cid, pid: pid,
+            cookie: cookie, lastTime: ti
         }, function (err, user) {
             if (err) { // user doing something fishy
                 return res.redirect(loc);
             }
 
-            var device = Utils.device(req);
             var parser = new UAParser(req.headers['user-agent']);
             var uaResult = parser.getResult();
-            var extra = { browser: uaResult.browser.name, country: country, referer: referer, device: device };
+            var extra = { browser: uaResult.browser.name, country: country, referer: referer, device: Utils.device(req) };
 
             if (uaResult.os.name) {
                 extra['os'] = uaResult.os.name;
             }
             ClickTrack.process({
-                adid: cid, ipaddr: ip,
+                adid: cid, ipaddr: Utils.getClientIP(req),
                 cookie: cookie, pid: pid
-            }, extra, function (newDoc) {
-                loc = ClickTrack.utmString(loc, {ad: ad, user_id: pid, ref: referer});
-                res.redirect(loc);
+            }, extra, function (newDoc) { 
             });
-            
+
+            loc = ClickTrack.utmString(loc, {ad: ad, user_id: pid, ref: referer});
+            res.redirect(loc);
         });
     });
 });

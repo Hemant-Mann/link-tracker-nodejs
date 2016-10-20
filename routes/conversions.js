@@ -10,14 +10,6 @@ var Ad = require('../models/ad');
 var Conversion = require('../models/conversion');
 var Advert = require('../models/affiliate');
 
-var getClientIP = function (req) {
-    var ip = req.headers['x-forwarded-for'] ||
-        req.headers['cf-connecting-ip'];
-
-    ip = ip.split(",")[0];
-    return ip;
-};
-
 function processConv(find, callback) {
     Click.findOne(find, 'adid pid _id is_bot', function (err, c) {
         if (err || !c || c.is_bot) {
@@ -116,8 +108,6 @@ router.get('/app', function (req, res, next) {
             return res.json({ success: true });
         });
     });
-
-    res.json(params);
 });
 
 // When click is send by the JS added on advertiser website because we are
@@ -149,7 +139,7 @@ router.get('/track/click', function (req, res, next) {
         }
         
         Click.process({
-            adid: adid, ipaddr: getClientIP(req),
+            adid: adid, ipaddr: Utils.getClientIP(req),
             cookie: req.query.ckid, pid: pid
         }, extra, function () {
 
