@@ -113,14 +113,22 @@ var utils = {
         return queryString.parse(parsedUrl.query) || {};
     },
     getClientIP: function (req) {
+        var last = false;
         var ip = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
+        if (!req.headers['cf-connecting-ip'] && req.headers['x-forwarded-for']) {
+            last = true;
+        }
 
         var arr = ip.split(",");
         arr = arr.map(function (el) {
             return el.trim();
         });
 
-        return arr.pop();
+        if (last) {
+            return arr.pop();            
+        }
+
+        return arr[0];
     }
 };
 

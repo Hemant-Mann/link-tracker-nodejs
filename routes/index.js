@@ -109,7 +109,7 @@ router.get('/impression', function (req, res, next) {
 
         Impression.process({
             adid: cid, pid: pid,
-            domain: dom, ua: device.browser,
+            referer: dom, browser: device.browser,
             device: platform, country: Utils.findCountry(req)
         });
 

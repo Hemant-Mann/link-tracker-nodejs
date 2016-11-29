@@ -6,8 +6,8 @@ var Schema = mongoose.Schema;
 var impSchema = new Schema({
     adid: Schema.Types.ObjectId,
     pid: Schema.Types.ObjectId,
-    domain: String,
-    ua: String,
+    referer: String,
+    browser: String,
     device: String,
     country: String,
     hits: { type: Number, default: 1 },
@@ -15,7 +15,7 @@ var impSchema = new Schema({
     created: Date
 }, { collection: 'impressions' });
 
-impSchema.index({ adid: 1, pid: 1, domain: 1, ua: 1, device: 1, country: 1, modified: 1 });
+impSchema.index({ adid: 1, pid: 1, referer: 1, browser: 1, device: 1, country: 1, modified: 1 });
 
 impSchema.statics.process = function (opts) {
 	var self = this,

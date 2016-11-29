@@ -22,7 +22,8 @@ function processConv(find, callback) {
                     cid: c._id, adid: c.adid,
                     pid: c.pid, created: Date.now()
                 });
-                conv.save();
+                conv.save(function (err) {
+                });
             }
 
             callback(null, true);
@@ -43,13 +44,13 @@ router.get('/acquisition', function (req, res, next) {
 });
 
 router.get('/pixel', function (req, res, next) {
-    var ckid = req.cookies.__vmtraffictracking;
+    var ckid = req.cookies.__vnativetracking;
     var adid = req.query.adid;
     var advert_id = req.query.advert_id;
 
     if (!ckid && !adid) {
         if (req.query.ckid) {
-            res.cookie('__vmtraffictracking', req.query.ckid, {
+            res.cookie('__vnativetracking', req.query.ckid, {
                 path: '/',
                 domain: req.headers['host'],
                 httpOnly: true,
