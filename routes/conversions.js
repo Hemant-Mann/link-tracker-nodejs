@@ -10,8 +10,8 @@ var Ad = require('../models/ad');
 var Conversion = require('../models/conversion');
 var Advert = require('../models/affiliate');
 
-function processConv(find, callback) {
-    Click.findOne(find, 'adid pid _id is_bot', function (err, c) {
+function processConv(find, req, callback) {
+    Click.findOne(find, function (err, c) {
         if (err || !c || c.is_bot) {
             return callback(true, null);
         }
@@ -24,6 +24,9 @@ function processConv(find, callback) {
                 });
                 conv.save(function (err) {
                 });
+
+                // check for callback request
+                Ad.convCallback(req, c);
             }
 
             callback(null, true);
@@ -38,7 +41,7 @@ router.get('/acquisition', function (req, res, next) {
 
     var msg = { success: true };
     var output = callback + "(" + JSON.stringify(msg) + ")";
-    processConv({_id: cid}, function (err, success) {
+    processConv({_id: cid}, req, function (err, success) {
         res.send(output);
     });
 });
@@ -59,7 +62,7 @@ router.get('/pixel', function (req, res, next) {
         }
         res.sendFile(path.join(__dirname, '../public/_blue.gif'));
     } else {
-        processConv({cookie: ckid, adid: adid}, function (err, success) {
+        processConv({cookie: ckid, adid: adid}, req, function (err, success) {
             // send an image
             if (advert_id) {
                 Advert.findOne({ _id: advert_id }, function (err, affiliate) {
