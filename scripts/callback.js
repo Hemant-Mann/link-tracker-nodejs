@@ -8,10 +8,10 @@ var Callback = (function () {
 
 	Callback.prototype = {
 		_getQuery: function (type, opts) {
-			var query = {live: true, event: opts.event};
+			var query = {live: true, event: opts.opts.type};
 			switch (type) {
 				case 'publisher':
-					query.user_id = opts.click.pid;
+					query.user_id = opts.obj.pid;
 					break;
 
 				case 'advertiser':
@@ -27,7 +27,7 @@ var Callback = (function () {
 				}
 
 				// make request
-				var finalUrl = Http.redirectUrl(opts.ad, opts.req, opts.click);
+				var finalUrl = Http.redirectUrl(opts.ad, opts.opts, opts.obj);
                 Http.get(finalUrl);
                 return cb(true);
 			});
@@ -41,21 +41,21 @@ var Callback = (function () {
 			var query = this._getQuery(type, opts);
 			this._check(query, opts, cb);
 		},
-		_campaignOnly: function (type, opts, cb) {
-			var query = this._getQuery(type, opts);
-			this._check(query, opts, cb);
-		},
-		_fire: function (event, click, req) {
+		_fire: function (event, obj, req) {
 			var self = this;
 			async.waterfall([
 				function (cb) {
-					Ad.findOne({ _id: click.adid }, '_id user_id url', cb);
+					Ad.findOne({ _id: obj.adid }, '_id user_id url', cb);
 				},
 				function (ad, cb) {
-					var opts = {click: click, ad: ad, req: req, event: event};
+					if (!ad) {
+						return cb({error: "Something fishy is going on"});
+					}
+					var opts = {obj: obj, ad: ad, opts: {headers: req.headers, type: event}};
 					var reqList = ['publisher', 'advertiser'];
 					var init = 0, total = reqList.length;
 
+					// pub + adv - check local callback if not exists then execute global
 					reqList.forEach(function (type) {
 						self._local(type, opts, function (done) {
 							init++;
@@ -65,11 +65,12 @@ var Callback = (function () {
 							}
 
 							if (init >= total) {
-								cb(opts);
+								cb(null, opts);
 							}
 						});
 					});
 				},
+				// check if any global campaign callback exists
 				function (opts) {
 					var query = self._query(null, opts);
 					query.user_id = {$exists: false};
@@ -79,19 +80,13 @@ var Callback = (function () {
 				// something went wrong
 			});
 		},
-		_fireImp: function () {
-
-		},
 		fire: function (event, opts) {
 			var self = this;
 			switch (event) {
 				case 'click':
 				case 'conversion':
-					self._fire(event, opts.click, opts.req);
-					break;
-
 				case 'impression':
-					self._fireImp(opts.impression, opts.req);
+					self._fire(event, opts.obj, opts.req);
 					break;
 			}
 		}

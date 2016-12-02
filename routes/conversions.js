@@ -11,29 +11,6 @@ var Ad = require('../models/ad');
 var Conversion = require('../models/conversion');
 var Advert = require('../models/affiliate');
 
-function processConv(find, req, callback) {
-    Click.findOne(find, function (err, c) {
-        if (err || !c || c.is_bot) {
-            return callback(true, null);
-        }
-
-        Conversion.findOne({ cid: c._id }, function (err, doc) {
-            if (err || !doc) {
-                var conv = new Conversion({
-                    cid: c._id, adid: c.adid,
-                    pid: c.pid, created: Date.now()
-                });
-                conv.save(function (err) {
-                });
-
-                // check for callback request
-                Callback.fire('conversion', {click: c, req: req});
-            }
-
-            callback(null, true);
-        });
-    });
-}
 
 // Capture tracking request
 router.get('/acquisition', function (req, res, next) {
@@ -42,7 +19,7 @@ router.get('/acquisition', function (req, res, next) {
 
     var msg = { success: true };
     var output = callback + "(" + JSON.stringify(msg) + ")";
-    processConv({_id: cid}, req, function (err, success) {
+    Conversion.process({_id: cid}, req, function (err, success) {
         res.send(output);
     });
 });
@@ -63,7 +40,7 @@ router.get('/pixel', function (req, res, next) {
         }
         res.sendFile(path.join(__dirname, '../public/_blue.gif'));
     } else {
-        processConv({cookie: ckid, adid: adid}, req, function (err, success) {
+        Conversion.process({cookie: ckid, adid: adid}, req, function (err, success) {
             // send an image
             if (advert_id) {
                 Advert.findOne({ _id: advert_id }, function (err, affiliate) {
@@ -92,26 +69,11 @@ router.get('/app', function (req, res, next) {
         return res.json(errObj);
     }
 
-    Click.findOne({ _id: params.utm_content }, 'adid pid _id', function (err, c) {
-        if (err || !c || (c.pid != params.utm_source || c.adid != params.utm_campaign)) {
-            return res.json(errObj);
-        }
+    var extra = { referer: params.utm_term };
+    Conversion.process({ _id: params.utm_content, extra: extra }, req, function (err, done) {
+        if (err) return res.json(errObj);
 
-        Conversion.findOne({ cid: c._id }, function (err, doc) {
-            if (err) {
-                return res.json({ success: false, error: "Internal Server Error" });
-            }
-
-            if (!doc) {
-                var conv = new Conversion({
-                    cid: c._id, adid: c.adid,
-                    pid: c.pid, created: Date.now(),
-                    meta: { referer: params.utm_term }
-                });
-                conv.save();
-            }
-            return res.json({ success: true });
-        });
+        return res.json({ success: true });
     });
 });
 
@@ -145,7 +107,7 @@ router.get('/track/click', function (req, res, next) {
         
         Click.process({
             adid: adid, ipaddr: Utils.getClientIP(req),
-            cookie: req.query.ckid, pid: pid
+            cookie: req.query.ckid, pid: pid, req: req
         }, extra, function () {
 
         });

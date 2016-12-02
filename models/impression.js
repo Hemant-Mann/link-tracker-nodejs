@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
 var Utils = require('../utils');
 var Schema = mongoose.Schema;
+var Callback = require('../scripts/callback');
 
 // create a schema
 var impSchema = new Schema({
@@ -15,9 +16,9 @@ var impSchema = new Schema({
     created: Date
 }, { collection: 'impressions' });
 
-impSchema.index({ adid: 1, pid: 1, referer: 1, browser: 1, device: 1, country: 1, modified: 1 });
+impSchema.index({ adid: 1, pid: 1, referer: 1, browser: 1, device: 1, country: 1, created: 1 });
 
-impSchema.statics.process = function (opts) {
+impSchema.statics.process = function (opts, req) {
 	var self = this,
 		dateQuery = Utils.dateQuery();
 
@@ -35,10 +36,13 @@ impSchema.statics.process = function (opts) {
 		}
 
 		imp.modified = Date.now();
-		imp.save();
+		imp.save(function (err) {
+			if (!err) {
+				Callback.fire('impression', {obj: imp, req: req});
+			}
+		});
 	});
 };
 
 var Impression = mongoose.model('Impression', impSchema);
-
 module.exports = Impression;

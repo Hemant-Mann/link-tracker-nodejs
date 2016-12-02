@@ -3,7 +3,6 @@ var router = express.Router();
 var uri = require('url');
 var UAParser = require('ua-parser-js');
 var Utils = require('../utils');
-var Callback = require('../scripts/callback');
 
 // inlcude Models
 var User = require('../models/user'),
@@ -57,9 +56,8 @@ router.get('/click', function (req, res, next) {
             }
             ClickTrack.process({
                 adid: cid, ipaddr: Utils.getClientIP(req),
-                cookie: cookie, pid: pid
+                cookie: cookie, pid: pid, req: req
             }, extra, function (newDoc) {
-                Callback.fire('click', {click: c, req: req});
             });
 
             loc = ClickTrack.utmString(loc, {ad: ad, user_id: pid, ref: referer});
@@ -113,7 +111,7 @@ router.get('/impression', function (req, res, next) {
             adid: cid, pid: pid,
             referer: dom, browser: device.browser,
             device: platform, country: Utils.findCountry(req)
-        });
+        }, req);
 
         res.send(output);
     });

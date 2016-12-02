@@ -2,9 +2,8 @@
  * Contains Utility functions
  */
 var UAParser = require('ua-parser-js');
-var queryString = require('querystring');
-var uriParser = require('url');
-var utils = {
+
+var Utils = {
     copyObj: function (obj) {
         var o = {}, prop;
 
@@ -107,11 +106,6 @@ var utils = {
         }
         return device;
     },
-    getSearchQuery: function (location) {
-        var parsedUrl = uriParser.parse(location);
-
-        return queryString.parse(parsedUrl.query) || {};
-    },
     getClientIP: function (req) {
         var last = false;
         var ip = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['x-forwarded-for'];
@@ -132,4 +126,4 @@ var utils = {
     }
 };
 
-module.exports = utils;
+module.exports = Utils;

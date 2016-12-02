@@ -1,9 +1,10 @@
 var req = require('request');
+var queryString = require('querystring');
 var urlParser = require('url');
 
 var httpModule = {
     searchQuery: function (location) {
-        var parsedUrl = uriParser.parse(location);
+        var parsedUrl = urlParser.parse(location);
 
         return queryString.parse(parsedUrl.query) || {};
     },
@@ -43,27 +44,37 @@ var httpModule = {
         }
         return result;
     },
-    getTrackingParams: function (ad, req, click) {
+    getTrackingParams: function (ad, opts, obj) {
         var allowedParams = {
-            aff_id: click.pid,
+            aff_id: obj.pid,
             adv_id: ad.user_id,
             ad_id: ad._id,
-            tdomain: req.headers.host
+            tdomain: opts.headers.host
         };
 
-        if (typeof(click) === "object") {
-            allowedParams.click_id = click._id;
-            allowedParams.click_time = click.created;
-            allowedParams.agent = click.browser;
-            allowedParams.referer = click.referer;
-            allowedParams.ip = click.ipaddr;
-            allowedParams.aff_sub1 = click.p1 || null;
-            allowedParams.aff_sub2 = click.p2 || null;
+        if (typeof(obj) === "object") {
+            allowedParams.agent = obj.browser;
+            allowedParams.referer = obj.referer;
+            switch (opts.type) {
+                case 'impression':
+                    allowedParams.hits = obj.hits;
+                    break;
+
+                case 'click':
+                case 'conversion':
+                default:
+                    allowedParams.click_id = obj._id;
+                    allowedParams.click_time = obj.created;
+                    allowedParams.ip = obj.ipaddr;
+                    allowedParams.aff_sub1 = obj.p1 || null;
+                    allowedParams.aff_sub2 = obj.p2 || null;
+                    break;
+            }
         }
     },
-    redirectUrl: function (ad, req, click) {
+    redirectUrl: function (ad, opts, obj) {
         var self = this, parser = self.parseUrl(ad.url);
-        var allowedParams = self.getTrackingParams(ad, req, click);
+        var allowedParams = self.getTrackingParams(ad, opts, obj);
 
         qs = self.queryParams(parser.query, allowedParams);
         finalUrl = self.makeUrl(parser, qs);
@@ -83,8 +94,8 @@ var httpModule = {
     },
     parseUrl: function (uri) {
     	var parsed = urlParser(uri);
-    	var self = this;
-    	var qs = {};
+    	var self = this, qs = {};
+
     	if (typeof(parsed.query) === "string" && parsed.query.length > 1) {
     		qs = self.searchQuery(uri);
     	}
