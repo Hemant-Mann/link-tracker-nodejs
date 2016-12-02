@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var Utils = require('../utils');
+var Callback = require('../scripts/callback');
 var UAParser = require('ua-parser-js');
 var path = require('path');
 
@@ -26,7 +27,7 @@ function processConv(find, req, callback) {
                 });
 
                 // check for callback request
-                Ad.convCallback(req, c);
+                Callback.fire('conversion', {click: c, req: req});
             }
 
             callback(null, true);

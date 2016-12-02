@@ -61,6 +61,14 @@ var httpModule = {
             allowedParams.aff_sub2 = click.p2 || null;
         }
     },
+    redirectUrl: function (ad, req, click) {
+        var self = this, parser = self.parseUrl(ad.url);
+        var allowedParams = self.getTrackingParams(ad, req, click);
+
+        qs = self.queryParams(parser.query, allowedParams);
+        finalUrl = self.makeUrl(parser, qs);
+        return finalUrl;
+    },
     makeUrl: function (parser, query) {
         var str = parser.protocol + '//' + parser.host + parser.pathname;
 
