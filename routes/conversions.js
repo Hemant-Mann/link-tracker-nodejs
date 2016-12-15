@@ -59,7 +59,7 @@ router.get('/pixel', function (req, res, next) {
     }
 });
 
-// https://play.google.com/store/apps/details?id=com.swiftintern&referrer=utm_source%3Duser_id%26utm_medium%3Daffiliate%26utm_term%3Dreferer%26utm_content%3Dclick_id%26utm_campaign%3Dad_id
+// https://play.google.com/store/apps/details?id=com.swiftintern&referrer=utm_source%3Dclick_id%26utm_medium%3Daffiliate%26utm_term%3Dreferer%26utm_content%3Duser_id%26utm_campaign%3Dad_id
 // request will be containing the part from referrer={url_encoded}
 router.get('/app', function (req, res, next) {
     var params = req.query;
